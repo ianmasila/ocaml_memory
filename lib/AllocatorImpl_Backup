@@ -1,0 +1,94 @@
+open Allocator
+open Util
+
+(**********************************************)
+(*   A concrete implementation of allocator   *)
+(**********************************************)
+
+module AllocatorImpl : Allocator = struct
+  type ptr = int (* position *) * int (* allocated length *) (* length is just a check *)
+
+  type elem =
+    | Ptr of ptr
+    | Int of int
+    | Str of string
+    | Allocated
+    | Free
+
+  type heap = {
+    arr: elem array;
+    free_indices_list: (int * elem) list
+  }
+
+  let make_heap sz = 
+    let a = Array.make sz Free in
+    let indices_lst = iota sz in
+    (* TODO *)
+    (* -1 for allocated slots, >0 for free slots *)
+    let free_lst = -1 :: List.tl indices_lst in
+    (* First element of heap array is a sentinel pointer pointing to Null *)
+    a.(0) = Ptr(0, 1);
+    {
+    arr = a;
+    free_indices_list = free_lst
+  }
+
+  let null h = h.arr.(0)
+
+  let is_null h p = p == (null h)
+
+  let alloc h size : heap -> int -> ptr = 
+    (* need to find "size" contiguous Free slots in heap *)
+    (* TODO: Keep a list of Free slots *)
+    let unfree_free_indices_list heap lo hi =
+      let free_indices_arr = list_to_array (heap.free_indices_list) in
+      Array.fill free_indices_arr lo hi -1;
+      heap.free_indices_list = array_to_list free_indices_arr
+    in
+    let rec find_contiguous_segment acc lst =
+      if List.size acc = size 
+      then 
+        let end = List.hd acc in
+        let start = List.hd (List.rev acc) in
+        start, finish, true
+      else
+        match lst with
+        | [] -> -1, -1, false
+        | [x] -> x :: acc
+        | x :: (y :: _ as t) ->
+          if y - x = 1 then find_contiguous_segment (x :: acc) t
+          else find_contiguous_segment [] t
+    in let start, finish, success = find_contiguous_segment [] h.free_indices_list in
+    if success 
+    then (
+      Array.fill h.arr start (finish + 1) Allocated;
+      (* Modify free_indices_list to remove (assign -1) no longer free heap array slots *)
+      unfree_free_indices_list h start (finish + 1);
+      (* Return pointer *)
+      Ptr(h.arr.(start), size)
+    )
+    else raise Out-Of-Memory
+
+  let free h p size : heap -> ptr -> int -> unit =
+    let free_free_indices_list heap lo hi =
+      let free_indices_arr = list_to_array (heap.free_indices_list) in
+      Array.iteri (fun i, elem -> if i >= lo && i < hi then i else elem) free_indices_arr;
+      heap.free_indices_list = array_to_list free_indices_arr
+    in
+    Array.fill h.arr (fst p) ((fst p) + size) Free;
+    free_free_indices_list h (fst p) ((fst p) + size);
+
+  let deref_as_ptr h p o = failwith "TODO"
+
+  let deref_as_int h p o = failwith "TODO"
+
+  let deref_as_string h p o = failwith "TODO"
+
+  let assign_ptr h p o v = failwith "TODO"
+
+  let assign_int h p o v = failwith "TODO"
+
+  let assign_string h p o v = failwith "TODO"
+end
+
+(* full should always return false *)

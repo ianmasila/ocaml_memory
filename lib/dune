@@ -1,0 +1,14 @@
+(library
+ (name lib)
+ (inline_tests)
+ (preprocess
+  (pps ppx_inline_test ppx_expect))
+ (libraries core batteries)
+ (wrapped false))
+
+(env
+ (dev
+  (flags
+   (:standard -warn-error -A)))
+ (release
+  (inline_tests enabled)))
